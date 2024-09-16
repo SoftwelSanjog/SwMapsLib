@@ -7,6 +7,7 @@ using SwMapsLib.Utils;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Linq;
+using SwMapsLib.Extensions;
 
 namespace SwMapsLib.Conversions.GPKG
 {
@@ -34,20 +35,31 @@ namespace SwMapsLib.Conversions.GPKG
 
 		public void Export(string path)
 		{
-			conn = new SQLiteConnection($"Data Source={path};Version=3;");
-			conn.Open();
-			sqlTrans = conn.BeginTransaction();
-			CreateTables();
-
-			foreach (var l in Project.FeatureLayers)
+			try
 			{
-				if (LayersToExport.Contains(l.Name) || ExportAllLayers) AddLayer(l);
-			}
+				conn = new SQLiteConnection($"Data Source={path};Version=3;");
+				conn.Open();
+				sqlTrans = conn.BeginTransaction();
+				CreateTables();
 
-			if (ExportPhotos) AddPhotos();
-			if (ExportTracks) AddTracks();
-			sqlTrans.Commit();
-			conn.Close();
+				foreach (var l in Project.FeatureLayers)
+				{
+					if (LayersToExport.Contains(l.Name) || ExportAllLayers) AddLayer(l);
+				}
+
+				if (ExportPhotos) AddPhotos();
+				if (ExportTracks) AddTracks();
+				sqlTrans.Commit();
+			}
+			finally
+			{
+				try
+				{
+					sqlTrans.Dispose();
+					conn.CloseConnection();
+				}
+				catch { }
+			}
 		}
 
 		private void CreateTables()
@@ -304,6 +316,7 @@ namespace SwMapsLib.Conversions.GPKG
 				if (attr.DataType == SwMapsAttributeType.Text) dataType = "TEXT";
 				if (attr.DataType == SwMapsAttributeType.Numeric) dataType = "REAL";
 				if (attr.DataType == SwMapsAttributeType.Options) dataType = "TEXT";
+				if (attr.DataType == SwMapsAttributeType.Checklist) dataType = "TEXT";
 				if (attr.DataType == SwMapsAttributeType.Photo) dataType = IncludeMediaFilesAsBlob ? "BLOB" : "TEXT";
 				if (attr.DataType == SwMapsAttributeType.Audio) dataType = IncludeMediaFilesAsBlob ? "BLOB" : "TEXT";
 				if (attr.DataType == SwMapsAttributeType.Video) dataType = IncludeMediaFilesAsBlob ? "BLOB" : "TEXT";
@@ -329,6 +342,7 @@ namespace SwMapsLib.Conversions.GPKG
 			var maxLat = -90.0;
 			var minLon = 180.0;
 			var maxLon = -180.0;
+
 			foreach (var f in features)
 			{
 				foreach (var p in f.Points)
@@ -350,7 +364,7 @@ namespace SwMapsLib.Conversions.GPKG
 				if (f.GeometryType == SwMapsGeometryType.Polygon && f.Points.Count < 3) continue;
 
 				byte[] geom = null;
-				if (f.GeometryType == SwMapsGeometryType.Point) geom = GpkgGeometryConverter.PointToGpkg(f.Points[0]);
+				if (f.GeometryType == SwMapsGeometryType.Point) geom = GpkgGeometryConverter.PointToGpkg(f.Points.Last());
 				if (f.GeometryType == SwMapsGeometryType.Line) geom = GpkgGeometryConverter.LinestringToGpkg(f.Points);
 				if (f.GeometryType == SwMapsGeometryType.Polygon) geom = GpkgGeometryConverter.PolygonToGpkg(f.Points);
 
@@ -363,15 +377,16 @@ namespace SwMapsLib.Conversions.GPKG
 
 				if (layer.GeometryType == SwMapsGeometryType.Point)
 				{
-					cv.Add("latitude", f.Points[0].Latitude);
-					cv.Add("longitude", f.Points[0].Longitude);
-					cv.Add("elevation", f.Points[0].Elevation);
-					cv.Add("ortho_ht", f.Points[0].OrthoHeight);
-					cv.Add("time", Formatter.GetTimeLabel(f.Points[0].Time));
-					cv.Add("additional_data", f.Points[0].AdditionalData);
+					var pt = f.Points.Last();
+					cv.Add("latitude", pt.Latitude);
+					cv.Add("longitude", pt.Longitude);
+					cv.Add("elevation", pt.Elevation);
+					cv.Add("ortho_ht", pt.OrthoHeight);
+					cv.Add("time", Formatter.GetTimeLabel(pt.Time));
+					cv.Add("additional_data", pt.AdditionalData);
 					if (!layer.Drawn)
 					{
-						cv.Add("fix_id", f.Points[0].FixID);
+						cv.Add("fix_id", pt.FixID);
 					}
 				}
 				else if (layer.GeometryType == SwMapsGeometryType.Line)
@@ -398,7 +413,7 @@ namespace SwMapsLib.Conversions.GPKG
 							var filePath = attr.Value;
 							if (File.Exists(filePath) == false)
 							{
-								filePath = System.IO.Path.Combine(Project.MediaFolderPath, attr.Value);
+								filePath = Path.Combine(Project.MediaFolderPath, attr.Value);
 							}
 
 							if (File.Exists(filePath))

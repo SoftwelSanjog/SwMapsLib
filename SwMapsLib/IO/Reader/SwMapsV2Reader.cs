@@ -1,4 +1,5 @@
 ﻿using SwMapsLib.Data;
+using SwMapsLib.Extensions;
 using SwMapsLib.Utils;
 using System;
 using System.Collections.Generic;
@@ -22,29 +23,35 @@ namespace SwMapsLib.IO
 		{
 			using (var conn = new SQLiteConnection($"Data Source={Swm2Path};Version=3;"))
 			{
-				conn.Open();
-
-				var mediaPath = Directory.GetParent(Path.GetDirectoryName(Swm2Path)).FullName;
-				mediaPath = Path.Combine(mediaPath, "Photos");
-
-				var project = new SwMapsProject(Swm2Path, mediaPath);
-				project.ProjectInfo = ReadProjectInfo(conn);
-				project.FeatureLayers = ReadAllFeatureLayers(conn);
-				project.Features = ReadAllFeatures(conn);
-				project.Tracks = ReadAllTracks(conn);
-				project.PhotoPoints = ReadAllPhotoPoints(conn);
-				project.ProjectAttributes = ReadProjectAttributes(conn);
-
-				foreach (var f in project.Features)
+				try
 				{
-					var layer = project.GetLayer(f.LayerID);
-					foreach (var a in f.AttributeValues)
+					conn.Open();
+
+					var mediaPath = Directory.GetParent(Path.GetDirectoryName(Swm2Path)).FullName;
+					mediaPath = Path.Combine(mediaPath, "Photos");
+
+					var project = new SwMapsProject(Swm2Path, mediaPath);
+					project.ProjectInfo = ReadProjectInfo(conn);
+					project.FeatureLayers = ReadAllFeatureLayers(conn);
+					project.Features = ReadAllFeatures(conn, project.FeatureLayers);
+					project.Tracks = ReadAllTracks(conn);
+					project.PhotoPoints = ReadAllPhotoPoints(conn);
+					project.ProjectAttributes = ReadProjectAttributes(conn);
+
+					foreach (var f in project.Features)
 					{
-						a.FieldName = layer.AttributeFields.FirstOrDefault(e => e.UUID == a.FieldID)?.FieldName ?? "";
+						var layer = project.GetLayer(f.LayerID);
+						foreach (var a in f.AttributeValues)
+						{
+							a.FieldName = layer.AttributeFields.FirstOrDefault(e => e.UUID == a.FieldID)?.FieldName ?? "";
+						}
 					}
+					return project;
 				}
-				conn.Close();
-				return project;
+				finally
+				{
+					conn.CloseConnection();
+				}
 			}
 		}
 
@@ -145,7 +152,7 @@ namespace SwMapsLib.IO
 			return ret;
 		}
 
-		public List<SwMapsFeature> ReadAllFeatures(SQLiteConnection conn)
+		public List<SwMapsFeature> ReadAllFeatures(SQLiteConnection conn, List<SwMapsFeatureLayer> layers)
 		{
 			var ret = new List<SwMapsFeature>();
 			var sql = "SELECT rowid,* FROM features";
@@ -162,7 +169,7 @@ namespace SwMapsLib.IO
 					feature.Points = ReadPoints(conn, feature.UUID);
 					feature.AttributeValues = ReadAttributeValues(conn, feature.UUID);
 
-
+					feature.GeometryType = layers.FirstOrDefault(l => l.UUID == feature.LayerID)?.GeometryType ?? SwMapsGeometryType.Point;
 					ret.Add(feature);
 				}
 			return ret;
@@ -194,6 +201,7 @@ namespace SwMapsLib.IO
 					layer.Active = reader.ReadInt32("active") == 1;
 					layer.Drawn = reader.ReadInt32("drawn") == 1;
 					layer.PngSymbol = reader.ReadBlob("png_symbol");
+					layer.ZIndex = reader.ReadInt32("z_index");
 					layer.AttributeFields = ReadAttributeFields(conn, layer.UUID);
 					ret.Add(layer);
 				}
@@ -217,17 +225,21 @@ namespace SwMapsLib.IO
 					vertex.Longitude = pointReader.ReadDouble("lon");
 					vertex.Elevation = pointReader.ReadDouble("elv");
 					vertex.OrthoHeight = pointReader.ReadDouble("ortho_ht");
-					
+
 
 					vertex.Time = pointReader.ReadInt64("time");
 					vertex.StartTime = pointReader.ReadInt64("start_time");
-					
+
 					vertex.InstrumentHeight = pointReader.ReadDouble("instrument_ht");
 					vertex.FixID = pointReader.ReadInt32("fix_quality");
-					
+
 					vertex.Speed = pointReader.ReadDouble("speed");
 					vertex.SnapID = pointReader.ReadString("snap_id");
 					vertex.AdditionalData = pointReader.ReadString("additional_data");
+					vertex.Bearing = pointReader.ReadDouble("bearing");
+					vertex.AccuracyH = pointReader.ReadDouble("accuracy_h");
+					vertex.AccuracyV = pointReader.ReadDouble("accuracy_v");
+					vertex.PositionData = pointReader.ReadString("pos_data");
 					ret.Add(vertex);
 				}
 			return ret;

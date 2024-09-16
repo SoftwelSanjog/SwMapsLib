@@ -1,9 +1,4 @@
 ﻿using SwMapsLib.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SwMapsLib.Utils
 {
@@ -40,6 +35,8 @@ namespace SwMapsLib.Utils
 				ret = SwMapsAttributeType.Numeric;
 			else if (dt == "OPTIONS")
 				ret = SwMapsAttributeType.Options;
+			else if (dt == "CHECKLIST")
+				ret = SwMapsAttributeType.Checklist;
 			else if (dt == "PHOTO")
 				ret = SwMapsAttributeType.Photo;
 			else if (dt == "AUDIO")
@@ -95,9 +92,11 @@ namespace SwMapsLib.Utils
 
 		public static string AttributeTypeToString(SwMapsAttributeType a)
 		{
+
 			if (a == SwMapsAttributeType.Text) return "TEXT";
 			if (a == SwMapsAttributeType.Numeric) return "NUMERIC";
 			if (a == SwMapsAttributeType.Options) return "OPTIONS";
+			if (a == SwMapsAttributeType.Checklist) return "CHECKLIST";
 			if (a == SwMapsAttributeType.Photo) return "PHOTO";
 			if (a == SwMapsAttributeType.Audio) return "AUDIO";
 			if (a == SwMapsAttributeType.Video) return "VIDEO";

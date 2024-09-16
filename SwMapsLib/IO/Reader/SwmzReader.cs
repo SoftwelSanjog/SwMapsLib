@@ -1,18 +1,16 @@
 ﻿using SwMapsLib.Data;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SwMapsLib.IO
 {
 	//Reads SW Maps V1 and V2 Project Files
 	public class SwmzReader
 	{
-		static string TempFolder = System.IO.Path.GetTempPath() + "\\SW_Maps\\";
+		static string SystemTempFolder = Path.Combine(Path.GetTempPath(), "SW_Maps");
+
+		string TempFolder;
 
 		public readonly string SwmzPath;
 		public readonly string DbPath; //Extracted path
@@ -59,19 +57,23 @@ namespace SwMapsLib.IO
 			return project;
 		}
 
-
-		public SwmzReader(string swmzPath, bool shortenZipNames = false)
+		public SwmzReader(string swmzPath, bool shortenZipNames, string tempFolderPath)
 		{
 			SwmzPath = swmzPath;
 			ShortenZipNames = shortenZipNames;
 
-			if (ShortenZipNames) {
-			    
-				ProjectTempDir =Path.Combine( TempFolder + Path.GetFileNameWithoutExtension(Path.GetTempFileName()));
+			TempFolder = tempFolderPath ?? SystemTempFolder;
+			Directory.CreateDirectory(TempFolder);
+
+			if (ShortenZipNames)
+			{
+				ProjectTempDir = Path.Combine(TempFolder, Path.GetFileNameWithoutExtension(Path.GetTempFileName()));
 			}
-			else {
-				ProjectTempDir =Path.Combine(TempFolder + Path.GetFileNameWithoutExtension(swmzPath).Trim());
+			else
+			{
+				ProjectTempDir = Path.Combine(TempFolder, Path.GetFileNameWithoutExtension(swmzPath).Trim());
 			}
+
 			if (Directory.Exists(ProjectTempDir))
 				Directory.Delete(ProjectTempDir, true);
 
@@ -108,8 +110,10 @@ namespace SwMapsLib.IO
 						}
 				}
 			}
-
-
 		}
+
+		public SwmzReader(string swmzPath, bool shortenZipNames = false) : this(swmzPath, shortenZipNames, null) { }
+		public SwmzReader(string swmzPath, string tempFolderPath) : this(swmzPath, false, tempFolderPath) { }
+		public SwmzReader(string swmzPath) : this(swmzPath, false, null) { }
 	}
 }

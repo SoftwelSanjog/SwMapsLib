@@ -212,10 +212,15 @@ namespace SwMapsLib.Conversions.Shapefile
 
 				if (f.GeometryType == SwMapsGeometryType.Point)
 				{
-					attrTable.Add("_LATITUDE", f.Points.First().Latitude);
-					attrTable.Add("_LONGITUDE", f.Points.First().Longitude);
-					attrTable.Add("_ELEVATION", f.Points.First().Elevation);
-					attrTable.Add("_ORTHO_HT", f.Points.First().OrthoHeight);
+					var lat = double.IsNaN(f.Points.Last().Latitude) ? 0 : f.Points.Last().Latitude;
+					var lon = double.IsNaN(f.Points.Last().Longitude) ? 0 : f.Points.Last().Longitude;
+					var elv = double.IsNaN(f.Points.Last().Elevation) ? 0 : f.Points.Last().Elevation;
+					var orthoHt = double.IsNaN(f.Points.Last().OrthoHeight) ? 0 : f.Points.Last().OrthoHeight;
+
+					attrTable.Add("_LATITUDE", lat);
+					attrTable.Add("_LONGITUDE", lon);
+					attrTable.Add("_ELEVATION", elv);
+					attrTable.Add("_ORTHO_HT", orthoHt);
 				}
 				else if (f.GeometryType == SwMapsGeometryType.Line)
 				{
@@ -246,7 +251,7 @@ namespace SwMapsLib.Conversions.Shapefile
 						Double.TryParse(attr.Value, out value);
 						attrTable.Add(fieldNames[field.FieldName], value);
 					}
-					else if (field.DataType == SwMapsAttributeType.Text || attr.DataType == SwMapsAttributeType.Options)
+					else if (field.DataType == SwMapsAttributeType.Text || attr.DataType == SwMapsAttributeType.Options || attr.DataType == SwMapsAttributeType.Checklist)
 					{
 						attrTable.Add(fieldNames[field.FieldName], attr.Value.Trim());
 					}

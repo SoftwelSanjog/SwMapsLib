@@ -179,7 +179,7 @@ namespace SwMapsLib.Conversions.KMZ
 			kmlFile.Add("<kml xmlns=\"http://www.opengis.net/kml/2.2\">");
 
 			kmlFile.Add("<Document>");
-			kmlFile.Add($"<name>{System.IO.Path.GetFileNameWithoutExtension(ExportPath)}</name>");
+			kmlFile.Add($"<name>{Path.GetFileNameWithoutExtension(ExportPath)}</name>");
 
 			var projectAttributes = Project.ProjectAttributes;
 			if (projectAttributes.Count + AdditionalAttributes.Count > 0)
@@ -424,7 +424,7 @@ namespace SwMapsLib.Conversions.KMZ
 			folders[layer.UUID].Add("<description>" + GetAttributeTable(layer, mpt) + "</description>");
 			folders[layer.UUID].Add($"<styleUrl>#{styleName}</styleUrl>");
 
-			var pt = points[0];
+			var pt = points.Last();
 
 			folders[layer.UUID].Add("<Point>");
 			folders[layer.UUID].Add("<coordinates>" + pt.Longitude + "," + pt.Latitude + "," + pt.Elevation + "</coordinates>");
@@ -504,6 +504,18 @@ namespace SwMapsLib.Conversions.KMZ
 							var fileName = Path.GetFileName(valueText);
 							Description += "<td><img src='files/" + fileName + "' width='200' /></td></tr>";
 						}
+					}
+					else if(field.DataType == SwMapsAttributeType.Checklist)
+					{
+						var checkedItems = valueText.Split(new string[] { "||" },StringSplitOptions.RemoveEmptyEntries);
+
+						Description += "<td><ul>";
+						foreach(var t in checkedItems)
+						{
+							Description += "<li>" + t + "</li>";
+						}
+						Description += "</ul></td></tr>";
+
 					}
 					else if (field.DataType == SwMapsAttributeType.Text
 							|| field.DataType == SwMapsAttributeType.Numeric
